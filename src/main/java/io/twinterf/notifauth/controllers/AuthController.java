@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import io.twinterf.notifauth.entities.User;
 import io.twinterf.notifauth.repositories.UserRepository;
+import io.twinterf.notifauth.services.UserService;
 import io.twinterf.notifauth.token.TokenConstantContainer;
 import io.twinterf.notifauth.token.TokenResponse;
 import org.mindrot.jbcrypt.BCrypt;
@@ -30,11 +31,11 @@ public class AuthController {
     private Logger logger = LoggerFactory.getLogger(AuthController.class);
     private TokenConstantContainer tokenConstants;
 
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Autowired
-    public AuthController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public AuthController(UserService userService) {
+        this.userService = userService;
         tokenConstants = new TokenConstantContainer();
     }
 
@@ -43,7 +44,7 @@ public class AuthController {
         logger.info("User creation requested: " + newUser.getUsername());
         String hashedPassword = BCrypt.hashpw(newUser.getPassword(), BCrypt.gensalt());
         newUser.setPassword(hashedPassword);
-        userRepository.save(newUser);
+        userService.addOrUpdateUser(newUser);
         logger.info("User creation successful: " + newUser.getUsername());
         return ResponseEntity.created(new URI("/users/" + newUser.getUsername())).build();
     }
@@ -51,7 +52,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody User user) {
         logger.info("Login requested for: " + user.getUsername());
-        var requestedUser = userRepository.findById(user.getUsername()).orElse(null);
+        var requestedUser = userService.getByUsername(user.getUsername());
         if (requestedUser == null) {
             logger.error("could not find username: " + user.getUsername());
             return ResponseEntity.notFound().build();
